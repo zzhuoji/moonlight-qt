@@ -9,12 +9,28 @@ on:
       ci_version:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      ci_version:
+        description: 'Version string (leave empty to use commit SHA)'
+        required: false
+        type: string
 
 jobs:
   build:
     env:
-      CI_VERSION: ${{ inputs.ci_version }}
-    runs-on: ubuntu-22.04
+      CI_VERSION: ${{ inputs.ci_version || github.sha }}
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+            linuxdeployqt_arch: x86_64
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+            linuxdeployqt_arch: aarch64
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout Repository
@@ -134,7 +150,7 @@ jobs:
       - name: Install linuxdeployqt
         working-directory: dep_root/bin
         run: |
-          wget -O linuxdeployqt https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          wget -O linuxdeployqt https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-${{ matrix.linuxdeployqt_arch }}.AppImage
           chmod a+x linuxdeployqt
 
       - name: Build Binaries
@@ -145,7 +161,7 @@ jobs:
       - name: Upload Binaries
         uses: actions/upload-artifact@v5
         with:
-          name: Moonlight-LinuxAppImage-${{ env.CI_VERSION }}
-          path: build/installer-release/Moonlight-${{ env.CI_VERSION }}-x86_64.AppImage
+          name: Moonlight-LinuxAppImage-${{ env.CI_VERSION }}-${{ matrix.arch }}
+          path: build/installer-release/Moonlight-${{ env.CI_VERSION }}-${{ matrix.arch }}.AppImage
           compression-level: 0
           if-no-files-found: error

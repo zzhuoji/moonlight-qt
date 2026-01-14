@@ -55,6 +55,30 @@ popd
 echo Creating AppImage
 pushd $INSTALLER_FOLDER
 VERSION=$VERSION linuxdeployqt $DEPLOY_FOLDER/usr/share/applications/com.moonlight_stream.Moonlight.desktop -qmake=qmake6 -qmldir=$SOURCE_ROOT/app/gui -appimage -extra-plugins=tls || fail "linuxdeployqt failed!"
+
+# Detect architecture and rename AppImage to include architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)
+    ARCH_NAME="x86_64"
+    ;;
+  aarch64|arm64)
+    ARCH_NAME="arm64"
+    ;;
+  *)
+    ARCH_NAME="$ARCH"
+    ;;
+esac
+
+# Find the generated AppImage and rename it
+GENERATED_APPIMAGE=$(ls -t Moonlight-*.AppImage 2>/dev/null | head -n 1)
+if [ -n "$GENERATED_APPIMAGE" ]; then
+  TARGET_NAME="Moonlight-$VERSION-$ARCH_NAME.AppImage"
+  mv "$GENERATED_APPIMAGE" "$TARGET_NAME"
+  echo "Renamed AppImage to: $TARGET_NAME"
+else
+  fail "Failed to find generated AppImage"
+fi
 popd
 
 echo Build successful
