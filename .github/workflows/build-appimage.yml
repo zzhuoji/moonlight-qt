@@ -36,6 +36,11 @@ jobs:
       options: --privileged
 
     steps:
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install -y git
+
       - name: Checkout Repository
         uses: actions/checkout@v5
         with:
@@ -57,7 +62,7 @@ jobs:
             qml6-module-qtqml-workerscript qml6-module-qtquick-window qml6-module-qtquick python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
             libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
             libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-            wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev wget git build-essential autoconf automake libtool pkg-config meson ninja-build
+            wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev wget build-essential autoconf automake libtool pkg-config meson ninja-build
           # Install Vulkan SDK based on architecture
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             apt-get install -y vulkan-sdk || (echo "Warning: vulkan-sdk not available, trying libvulkan-dev" && apt-get install -y libvulkan-dev vulkan-tools)
