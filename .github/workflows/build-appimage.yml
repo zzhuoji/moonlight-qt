@@ -25,10 +25,10 @@ jobs:
         arch: [x86_64, arm64]
         include:
           - arch: x86_64
-            runner: ubuntu-22.04
+            runner: ubuntu-20.04
             linuxdeployqt_arch: x86_64
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-20.04
             linuxdeployqt_arch: aarch64
     runs-on: ${{ matrix.runner }}
 
@@ -45,7 +45,7 @@ jobs:
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             sudo mkdir -p /etc/apt/keyrings
             wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/keyrings/lunarg.asc > /dev/null
-            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/lunarg.asc] https://packages.lunarg.com/vulkan/1.4.313 jammy main" | sudo tee /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-jammy.list > /dev/null
+            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/lunarg.asc] https://packages.lunarg.com/vulkan/1.4.313 focal main" | sudo tee /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-focal.list > /dev/null
           fi
           sudo apt update
           # Install base packages
