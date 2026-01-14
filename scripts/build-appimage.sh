@@ -39,7 +39,16 @@ pushd $BUILD_FOLDER
 # work even in X11. To avoid this, we will disable Wayland support for the AppImage.
 #
 # We disable DRM support because linuxdeployqt doesn't bundle the appropriate libraries for Qt EGLFS.
-qmake6 $SOURCE_ROOT/moonlight-qt.pro CONFIG+=disable-wayland CONFIG+=disable-libdrm PREFIX=$DEPLOY_FOLDER/usr DEFINES+=APP_IMAGE || fail "Qmake failed!"
+#
+# On arm64, disable libplacebo (Vulkan) support because the system Vulkan headers are too old
+# and don't include Vulkan Video extension definitions required by the code.
+ARCH=$(uname -m)
+QMAKE_ARGS="CONFIG+=disable-wayland CONFIG+=disable-libdrm PREFIX=$DEPLOY_FOLDER/usr DEFINES+=APP_IMAGE"
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+  QMAKE_ARGS="$QMAKE_ARGS CONFIG+=disable-libplacebo"
+  echo "Disabling libplacebo (Vulkan) support for arm64 architecture"
+fi
+qmake6 $SOURCE_ROOT/moonlight-qt.pro $QMAKE_ARGS || fail "Qmake failed!"
 popd
 
 echo Compiling Moonlight in $BUILD_CONFIG configuration
