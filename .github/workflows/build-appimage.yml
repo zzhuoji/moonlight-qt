@@ -25,12 +25,15 @@ jobs:
         arch: [x86_64, arm64]
         include:
           - arch: x86_64
-            runner: ubuntu-20.04
+            runner: ubuntu-22.04
             linuxdeployqt_arch: x86_64
           - arch: arm64
-            runner: ubuntu-20.04
+            runner: ubuntu-22.04-arm
             linuxdeployqt_arch: aarch64
     runs-on: ${{ matrix.runner }}
+    container:
+      image: ubuntu:20.04
+      options: --privileged
 
     steps:
       - name: Checkout Repository
@@ -41,30 +44,28 @@ jobs:
 
       - name: Setup environment
         run: |
-          # Add LunarG Vulkan repository (only for x86_64, arm64 uses system packages)
+          apt-get update
+          # Add LunarG Vulkan repository (only for x86_64)
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            sudo mkdir -p /etc/apt/keyrings
-            wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/keyrings/lunarg.asc > /dev/null
-            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/lunarg.asc] https://packages.lunarg.com/vulkan/1.4.313 focal main" | sudo tee /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-focal.list > /dev/null
+            mkdir -p /etc/apt/keyrings
+            wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | tee /etc/apt/keyrings/lunarg.asc > /dev/null
+            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/lunarg.asc] https://packages.lunarg.com/vulkan/1.4.313 focal main" | tee /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-focal.list > /dev/null
+            apt-get update
           fi
-          sudo apt update
           # Install base packages
-          sudo apt install -y qt6-base-dev qt6-declarative-dev libqt6svg6-dev qml6-module-qtquick-controls qml6-module-qtquick-templates qml6-module-qtquick-layouts \
+          apt-get install -y qt6-base-dev qt6-declarative-dev libqt6svg6-dev qml6-module-qtquick-controls qml6-module-qtquick-templates qml6-module-qtquick-layouts \
             qml6-module-qtqml-workerscript qml6-module-qtquick-window qml6-module-qtquick python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
             libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
             libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-            wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev
+            wayland-protocols libopus-dev libvdpau-dev libgl-dev libpipewire-0.3-dev wget git build-essential autoconf automake libtool pkg-config meson ninja-build
           # Install Vulkan SDK based on architecture
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            sudo apt install -y vulkan-sdk || (echo "Warning: vulkan-sdk not available, trying libvulkan-dev" && sudo apt install -y libvulkan-dev vulkan-tools)
+            apt-get install -y vulkan-sdk || (echo "Warning: vulkan-sdk not available, trying libvulkan-dev" && apt-get install -y libvulkan-dev vulkan-tools)
           else
-            # For arm64, use system packages as LunarG doesn't provide vulkan-sdk for arm64
-            # Install all available Vulkan packages to ensure FFmpeg can find it
-            sudo apt install -y libvulkan-dev vulkan-tools vulkan-loader-dev || sudo apt install -y libvulkan-dev
-            # Try to install validation layers if available (optional)
-            sudo apt install -y vulkan-validationlayers-dev 2>/dev/null || echo "Note: vulkan-validationlayers-dev not available, skipping"
+            apt-get install -y libvulkan-dev vulkan-tools vulkan-loader-dev || apt-get install -y libvulkan-dev
+            apt-get install -y vulkan-validationlayers-dev 2>/dev/null || echo "Note: vulkan-validationlayers-dev not available, skipping"
           fi
-          sudo pip3 install meson
+          pip3 install meson
           mkdir -p dep_root/{bin,include,lib}
           echo "DEP_ROOT=$PWD/dep_root" >> "${GITHUB_ENV}"
           echo "$PWD/dep_root/bin" >> "${GITHUB_PATH}"
@@ -82,7 +83,7 @@ jobs:
           ./autogen.sh
           ./configure
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: Checkout SDL_ttf
         uses: actions/checkout@v5
@@ -98,7 +99,7 @@ jobs:
           ./autogen.sh
           ./configure
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: Checkout libva
         uses: actions/checkout@v5
@@ -113,7 +114,7 @@ jobs:
           ./autogen.sh
           ./configure --enable-x11
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: Checkout libplacebo
         uses: actions/checkout@v5
@@ -129,7 +130,7 @@ jobs:
           git apply ../../app/deploy/linux/appimage/*.patch
           meson setup build -Dvulkan=enabled -Dopengl=disabled -Ddemos=false
           ninja -C build
-          sudo ninja install -C build
+          ninja install -C build
 
       - name: Build dav1d
         working-directory: deps
@@ -140,7 +141,7 @@ jobs:
           pushd dav1d
           meson setup build -Ddefault_library=static -Dbuildtype=release -Denable_tools=false -Denable_tests=false
           ninja -C build
-          sudo ninja install -C build
+          ninja install -C build
           popd
 
       - name: Checkout FFmpeg
@@ -173,7 +174,7 @@ jobs:
               --enable-libdav1d --enable-decoder=libdav1d
           fi
           make -j$(nproc)
-          sudo make install
+          make install
 
       - name: Install linuxdeployqt
         working-directory: dep_root/bin
@@ -183,7 +184,7 @@ jobs:
 
       - name: Build Binaries
         run: |
-          sudo ldconfig
+          ldconfig
           scripts/build-appimage.sh
 
       - name: Upload Binaries
