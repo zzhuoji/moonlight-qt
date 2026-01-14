@@ -59,7 +59,8 @@ jobs:
             sudo apt install -y vulkan-sdk || (echo "Warning: vulkan-sdk not available, trying libvulkan-dev" && sudo apt install -y libvulkan-dev vulkan-tools)
           else
             # For arm64, use system packages as LunarG doesn't provide vulkan-sdk for arm64
-            sudo apt install -y libvulkan-dev vulkan-tools || sudo apt install -y libvulkan-dev
+            # Install all available Vulkan packages to ensure FFmpeg can find it
+            sudo apt install -y libvulkan-dev vulkan-tools vulkan-loader-dev || sudo apt install -y libvulkan-dev
             # Try to install validation layers if available (optional)
             sudo apt install -y vulkan-validationlayers-dev 2>/dev/null || echo "Note: vulkan-validationlayers-dev not available, skipping"
           fi
@@ -152,12 +153,25 @@ jobs:
       - name: Build FFmpeg
         working-directory: deps/FFmpeg
         run: |
-          ./configure --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
-            --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
-            --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
-            --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
-            --enable-libdrm --enable-vulkan --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan \
-            --enable-libdav1d --enable-decoder=libdav1d
+          # Configure FFmpeg with architecture-specific options
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            # x86_64: Enable all hardware acceleration including Vulkan
+            ./configure --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
+              --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
+              --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
+              --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
+              --enable-libdrm --enable-vulkan --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan \
+              --enable-libdav1d --enable-decoder=libdav1d
+          else
+            # arm64: Disable Vulkan as it's not available in LunarG SDK, but keep other hardware acceleration
+            echo "Configuring FFmpeg for arm64 without Vulkan support"
+            ./configure --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
+              --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
+              --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
+              --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
+              --enable-libdrm \
+              --enable-libdav1d --enable-decoder=libdav1d
+          fi
           make -j$(nproc)
           sudo make install
 
