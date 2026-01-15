@@ -194,6 +194,8 @@ if [ ! -d "deps/FFmpeg" ]; then
     cd ../..
 fi
 pushd deps/FFmpeg
+
+# Prepare PKG_CONFIG_PATH with all necessary paths
 export PKG_CONFIG_PATH=$DEP_ROOT/lib/pkgconfig:$DEP_ROOT/lib64/pkgconfig:$PKG_CONFIG_PATH
 
 FFMPEG_CONF="--prefix=$DEP_ROOT --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
@@ -204,12 +206,26 @@ FFMPEG_CONF="--prefix=$DEP_ROOT --enable-pic --disable-static --enable-shared --
     --enable-libdav1d --enable-decoder=libdav1d"
 
 if [ "$ARCH" = "x86_64" ]; then
-    FFMPEG_CONF="$FFMPEG_CONF --enable-vulkan --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan"
+    # Debug: Check for Vulkan PC file
+    echo "Debugging Vulkan configuration..."
+    echo "VULKAN_SDK path: $VULKAN_SDK"
+    if [ -f "$VULKAN_SDK/lib/pkgconfig/vulkan.pc" ]; then
+        echo "Found vulkan.pc at $VULKAN_SDK/lib/pkgconfig/vulkan.pc"
+        # Explicitly prepend Vulkan pkgconfig path to ensure it's found
+        export PKG_CONFIG_PATH=$VULKAN_SDK/lib/pkgconfig:$PKG_CONFIG_PATH
+    else
+        echo "WARNING: vulkan.pc not found in $VULKAN_SDK/lib/pkgconfig"
+        ls -R "$VULKAN_SDK" || true
+    fi
+    
+    # Configure with Vulkan and explicit flags as backup
+    FFMPEG_CONF="$FFMPEG_CONF --enable-vulkan --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan --extra-cflags=-I$VULKAN_SDK/include --extra-ldflags=-L$VULKAN_SDK/lib"
 else
     echo "Disabling Vulkan for FFmpeg on arm64"
 fi
 
-./configure $FFMPEG_CONF
+echo "Detailed PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+./configure $FFMPEG_CONF || { cat ffbuild/config.log; exit 1; }
 make -j$(nproc)
 make install
 popd
