@@ -115,6 +115,8 @@ fi
 # Remove problematic SQL drivers that cause linuxdeployqt to fail due to missing dependencies
 rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlmimer.so
 rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlodbc.so
+rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlmysql.so
+rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlpsql.so
 
 # Build Dependencies
 mkdir -p deps
