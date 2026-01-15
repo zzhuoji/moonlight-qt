@@ -36,11 +36,16 @@ if [ "$ARCH" = "x86_64" ]; then
     echo "Downloading Vulkan SDK from $VULKAN_SDK_URL"
     if wget -q "$VULKAN_SDK_URL" -O /tmp/vulkan-sdk.tar.xz; then
         tar -xf /tmp/vulkan-sdk.tar.xz -C $VULKAN_SDK_DIR --strip-components=1
-        export VULKAN_SDK=$VULKAN_SDK_DIR
+        if [ -d "$VULKAN_SDK_DIR/x86_64" ]; then
+            VULKAN_SDK=$VULKAN_SDK_DIR/x86_64
+        else
+            VULKAN_SDK=$VULKAN_SDK_DIR
+        fi
+        export VULKAN_SDK
         export PATH=$VULKAN_SDK/bin:$PATH
         export LD_LIBRARY_PATH=$VULKAN_SDK/lib:${LD_LIBRARY_PATH:-}
         export PKG_CONFIG_PATH=$VULKAN_SDK/lib/pkgconfig:${PKG_CONFIG_PATH:-}
-        echo "Vulkan SDK installed at $VULKAN_SDK_DIR"
+        echo "Vulkan SDK installed at $VULKAN_SDK"
     else
         echo "Failed to download Vulkan SDK, falling back to system packages"
         apt-get install -y libvulkan-dev vulkan-tools
