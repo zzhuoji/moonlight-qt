@@ -25,12 +25,12 @@ jobs:
         arch: [x86_64, arm64]
         include:
           - arch: x86_64
-            runner: ubuntu-22.04
+            runner: ubuntu-latest
             linuxdeployqt_arch: x86_64
             qt_arch: linux_x64
             vulkan_repo: focal
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-latest
             linuxdeployqt_arch: aarch64
             qt_arch: linux_arm64
             vulkan_repo: focal
@@ -38,13 +38,24 @@ jobs:
     container:
       # Using Ubuntu 20.04 for both architectures to ensure GLIBC 2.31 compatibility
       # Qt6 will be installed via aqtinstall (Qt official installer)
+      # Note: For arm64 builds, GitHub Actions container may use native arm64 runner if available
+      # or fall back to QEMU emulation (though container QEMU support may be limited)
       image: ubuntu:20.04
       options: --privileged
+      env:
+        DEBIAN_FRONTEND: noninteractive
+        TZ: Etc/UTC
 
     steps:
       - name: Install Git
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
         run: |
+          ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
           apt-get update
+          apt-get install -y --no-install-recommends tzdata
+          dpkg-reconfigure --frontend noninteractive tzdata
           apt-get install -y git
 
       - name: Checkout Repository
@@ -54,6 +65,8 @@ jobs:
           fetch-depth: 1
 
       - name: Setup environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update
           # Install basic dependencies
