@@ -248,8 +248,17 @@ if [ "$ARCH" = "x86_64" ]; then
 else
     LD_ARCH="aarch64"
 fi
-wget -O dep_root/bin/linuxdeployqt "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-$LD_ARCH.AppImage"
-chmod a+x dep_root/bin/linuxdeployqt
+
+# Download AppImage
+wget -O dep_root/bin/linuxdeployqt-appimage "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-$LD_ARCH.AppImage"
+chmod a+x dep_root/bin/linuxdeployqt-appimage
+
+# Extract AppImage to avoid FUSE/execution issues in Docker
+pushd dep_root/bin
+./linuxdeployqt-appimage --appimage-extract
+mv squashfs-root/AppRun linuxdeployqt
+rm -rf linuxdeployqt-appimage squashfs-root
+popd
 
 # Build Project
 echo "Building AppImage..."
