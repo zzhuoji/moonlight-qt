@@ -44,6 +44,9 @@ pushd $BUILD_FOLDER
 # and don't include Vulkan Video extension definitions required by the code.
 ARCH=$(uname -m)
 QMAKE_ARGS="CONFIG+=disable-wayland CONFIG+=disable-libdrm PREFIX=$DEPLOY_FOLDER/usr DEFINES+=APP_IMAGE"
+if [ -n "$VULKAN_SDK" ]; then
+  QMAKE_ARGS="$QMAKE_ARGS INCLUDEPATH+=$VULKAN_SDK/include LIBS+=-L$VULKAN_SDK/lib"
+fi
 if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
   QMAKE_ARGS="$QMAKE_ARGS CONFIG+=disable-libplacebo"
   echo "Disabling libplacebo (Vulkan) support for arm64 architecture"
