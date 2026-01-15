@@ -1,4 +1,3 @@
----
 name: Build - Linux AppImage
 permissions:
   contents: read
@@ -18,261 +17,46 @@ on:
 
 jobs:
   build:
-    env:
-      CI_VERSION: ${{ inputs.ci_version || github.sha }}
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         arch: [x86_64, arm64]
-        include:
-          - arch: x86_64
-            runner: ubuntu-latest
-            linuxdeployqt_arch: x86_64
-            qt_arch: linux_x64
-          - arch: arm64
-            runner: ubuntu-24.04-arm64
-            linuxdeployqt_arch: aarch64
-            qt_arch: linux_arm64
-    runs-on: ${{ matrix.runner }}
-    container:
-      # Using Ubuntu 20.04 for both architectures to ensure GLIBC 2.31 compatibility
-      # Qt6 will be installed via aqtinstall (Qt official installer)
-      # Note: For arm64 builds, GitHub Actions container may use native arm64 runner if available
-      # or fall back to QEMU emulation (though container QEMU support may be limited)
-      image: ubuntu:20.04
-      options: --privileged
-      env:
-        DEBIAN_FRONTEND: noninteractive
-        TZ: Etc/UTC
 
     steps:
-      - name: Install Git
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: Etc/UTC
-        run: |
-          ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
-          apt-get update
-          apt-get install -y --no-install-recommends tzdata
-          dpkg-reconfigure --frontend noninteractive tzdata
-          apt-get install -y git
-
       - name: Checkout Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: 1
 
-      - name: Setup environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          apt-get update
-          # Install basic dependencies
-          apt-get install -y python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
-            libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
-            libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-            wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config meson ninja-build curl xz-utils
-          # Install Vulkan SDK using tarball (LunarG APT repository is deprecated)
-          # For x86_64, try to install Vulkan SDK from tarball, fallback to system packages
-          if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            echo "Installing Vulkan SDK for x86_64..."
-            VULKAN_SDK_VERSION=1.4.313.0
-            VULKAN_SDK_DIR=/opt/vulkan-sdk
-            VULKAN_SDK_FILENAME="vulkansdk-linux-x86_64-$VULKAN_SDK_VERSION.tar.xz"
-            VULKAN_SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/linux/$VULKAN_SDK_FILENAME"
-            mkdir -p $VULKAN_SDK_DIR
-            # Try to download and install Vulkan SDK from tarball
-            if wget -q --spider "$VULKAN_SDK_URL" 2>/dev/null; then
-              echo "Downloading Vulkan SDK tarball from $VULKAN_SDK_URL..."
-              wget -q "$VULKAN_SDK_URL" -O /tmp/vulkan-sdk.tar.xz
-              if [ -f /tmp/vulkan-sdk.tar.xz ]; then
-                tar -xf /tmp/vulkan-sdk.tar.xz -C $VULKAN_SDK_DIR --strip-components=1
-                export VULKAN_SDK=$VULKAN_SDK_DIR
-                export PATH=$VULKAN_SDK/bin:$PATH
-                export LD_LIBRARY_PATH=$VULKAN_SDK/lib:${LD_LIBRARY_PATH:-}
-                echo "VULKAN_SDK=$VULKAN_SDK_DIR" >> "${GITHUB_ENV}"
-                echo "$VULKAN_SDK_DIR/bin" >> "${GITHUB_PATH}"
-                # Set LD_LIBRARY_PATH for subsequent steps
-                if [ -n "${LD_LIBRARY_PATH}" ]; then
-                  echo "LD_LIBRARY_PATH=$VULKAN_SDK_DIR/lib:${LD_LIBRARY_PATH}" >> "${GITHUB_ENV}"
-                else
-                  echo "LD_LIBRARY_PATH=$VULKAN_SDK_DIR/lib" >> "${GITHUB_ENV}"
-                fi
-                echo "Vulkan SDK installed from tarball at $VULKAN_SDK_DIR"
-              else
-                echo "Warning: Failed to download Vulkan SDK tarball, falling back to system packages"
-                apt-get install -y libvulkan-dev vulkan-tools || echo "Warning: Failed to install Vulkan packages"
-              fi
-            else
-              echo "Warning: Vulkan SDK tarball not available at $VULKAN_SDK_URL, falling back to system packages"
-              apt-get install -y libvulkan-dev vulkan-tools || echo "Warning: Failed to install Vulkan packages"
-            fi
-          else
-            # For arm64, use system packages (Vulkan SDK tarball may not be available for arm64)
-            echo "Installing Vulkan packages for arm64 from system repositories..."
-            apt-get install -y libvulkan-dev vulkan-tools vulkan-loader-dev || apt-get install -y libvulkan-dev
-            apt-get install -y vulkan-validationlayers-dev 2>/dev/null || echo "Note: vulkan-validationlayers-dev not available, skipping"
-          fi
-          # Install pipewire (optional)
-          apt-get install -y libpipewire-0.3-dev 2>/dev/null || echo "Note: libpipewire-0.3-dev not available, skipping"
-          pip3 install meson aqtinstall
-          mkdir -p dep_root/{bin,include,lib}
-          echo "DEP_ROOT=$PWD/dep_root" >> "${GITHUB_ENV}"
-          echo "$PWD/dep_root/bin" >> "${GITHUB_PATH}"
-
-      - name: Install Qt6 via aqtinstall
-        run: |
-          # Install Qt6 using aqtinstall (Qt official installer)
-          # This works for both x86_64 and arm64 on Ubuntu 20.04
-          QT_VERSION=6.5.3
-          QT_DIR=/opt/qt
-          mkdir -p $QT_DIR
-          # Install Qt6 (skip modules for faster installation, add if needed)
-          python3 -m aqt install-qt -O $QT_DIR linux desktop $QT_VERSION ${{ matrix.qt_arch }} || \
-          (echo "Failed to install Qt6, trying without modules" && python3 -m aqt install-qt -O $QT_DIR linux desktop $QT_VERSION ${{ matrix.qt_arch }} --archives qtbase qtsvg qtdeclarative)
-          # Find the Qt installation directory (could be gcc_64, gcc_arm64, etc.)
-          QT_INSTALL_DIR=$(find $QT_DIR/$QT_VERSION -name "qmake" -type f | head -1 | xargs dirname | xargs dirname)
-          if [ -z "$QT_INSTALL_DIR" ]; then
-            echo "Error: Could not find Qt installation directory"
-            ls -la $QT_DIR/$QT_VERSION/ || true
-            exit 1
-          fi
-          # Set up Qt6 environment
-          export PATH=$QT_INSTALL_DIR/bin:$PATH
-          export QTDIR=$QT_INSTALL_DIR
-          export LD_LIBRARY_PATH=$QT_INSTALL_DIR/lib:$LD_LIBRARY_PATH
-          echo "PATH=$QT_INSTALL_DIR/bin:$PATH" >> "${GITHUB_ENV}"
-          echo "QTDIR=$QT_INSTALL_DIR" >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=$QT_INSTALL_DIR/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          # Create qmake6 symlink if needed
-          if [ ! -f "$QT_INSTALL_DIR/bin/qmake6" ] && [ -f "$QT_INSTALL_DIR/bin/qmake" ]; then
-            ln -s $QT_INSTALL_DIR/bin/qmake $QT_INSTALL_DIR/bin/qmake6
-          fi
-          # Verify installation
-          $QT_INSTALL_DIR/bin/qmake6 --version || $QT_INSTALL_DIR/bin/qmake --version
-          echo "Qt6 installed at: $QT_INSTALL_DIR"
-
-      - name: Checkout SDL
-        uses: actions/checkout@v5
+      - name: Set up QEMU
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
         with:
-          repository: libsdl-org/SDL
-          ref: 3eba0b6f8a21392f47b1b53a476e7633048de9b1
-          path: deps/SDL
+          platforms: arm64
 
-      - name: Build SDL
-        working-directory: deps/SDL
+      - name: Setup Build Script Permissions
+        run: chmod +x scripts/ci-build-docker.sh scripts/build-appimage.sh
+
+      - name: Build in Docker (Ubuntu 20.04)
         run: |
-          ./autogen.sh
-          ./configure
-          make -j$(nproc)
-          make install
-
-      - name: Checkout SDL_ttf
-        uses: actions/checkout@v5
-        with:
-          repository: libsdl-org/SDL_ttf
-          ref: release-2.22.0
-          path: deps/SDL_ttf
-          submodules: 'recursive'
-
-      - name: Build SDL_ttf
-        working-directory: deps/SDL_ttf
-        run: |
-          ./autogen.sh
-          ./configure
-          make -j$(nproc)
-          make install
-
-      - name: Checkout libva
-        uses: actions/checkout@v5
-        with:
-          repository: intel/libva
-          ref: 2.23.0
-          path: deps/libva
-
-      - name: Build libva
-        working-directory: deps/libva
-        run: |
-          ./autogen.sh
-          ./configure --enable-x11
-          make -j$(nproc)
-          make install
-
-      - name: Checkout libplacebo
-        uses: actions/checkout@v5
-        with:
-          repository: haasn/libplacebo
-          ref: bc90ef94944a3dcaab324b86d3e3769ad1d8698b
-          path: deps/libplacebo
-          submodules: 'recursive'
-
-      - name: Build libplacebo
-        working-directory: deps/libplacebo
-        run: |
-          git apply ../../app/deploy/linux/appimage/*.patch
-          meson setup build -Dvulkan=enabled -Dopengl=disabled -Ddemos=false
-          ninja -C build
-          ninja install -C build
-
-      - name: Build dav1d
-        working-directory: deps
-        env:
-          DAV1D_VER: 1.5.2
-        run: |
-          git clone --branch $DAV1D_VER --depth 1 https://code.videolan.org/videolan/dav1d.git
-          pushd dav1d
-          meson setup build -Ddefault_library=static -Dbuildtype=release -Denable_tools=false -Denable_tests=false
-          ninja -C build
-          ninja install -C build
-          popd
-
-      - name: Checkout FFmpeg
-        uses: actions/checkout@v5
-        with:
-          repository: FFmpeg/FFmpeg
-          ref: n8.0.1
-          path: deps/FFmpeg
-
-      - name: Build FFmpeg
-        working-directory: deps/FFmpeg
-        run: |
-          # Configure FFmpeg with architecture-specific options
-          if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            # x86_64: Enable all hardware acceleration including Vulkan
-            ./configure --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
-              --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
-              --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
-              --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
-              --enable-libdrm --enable-vulkan --enable-hwaccel=h264_vulkan --enable-hwaccel=hevc_vulkan --enable-hwaccel=av1_vulkan \
-              --enable-libdav1d --enable-decoder=libdav1d
-          else
-            # arm64: Disable Vulkan as it's not available in LunarG SDK, but keep other hardware acceleration
-            echo "Configuring FFmpeg for arm64 without Vulkan support"
-            ./configure --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
-              --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
-              --enable-vaapi --enable-hwaccel=h264_vaapi --enable-hwaccel=hevc_vaapi --enable-hwaccel=av1_vaapi \
-              --enable-vdpau --enable-hwaccel=h264_vdpau  --enable-hwaccel=hevc_vdpau --enable-hwaccel=av1_vdpau \
-              --enable-libdrm \
-              --enable-libdav1d --enable-decoder=libdav1d
-          fi
-          make -j$(nproc)
-          make install
-
-      - name: Install linuxdeployqt
-        working-directory: dep_root/bin
-        run: |
-          wget -O linuxdeployqt https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-${{ matrix.linuxdeployqt_arch }}.AppImage
-          chmod a+x linuxdeployqt
-
-      - name: Build Binaries
-        run: |
-          ldconfig
-          scripts/build-appimage.sh
+          # Use platform flag to ensure we run on the correct architecture (via QEMU if needed)
+          PLATFORM="${{ matrix.arch == 'x86_64' && 'linux/amd64' || 'linux/arm64' }}"
+          echo "Running build for ${{ matrix.arch }} on $PLATFORM"
+          
+          docker run --rm --privileged \
+            --platform $PLATFORM \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            -e CI_VERSION=${{ inputs.ci_version || github.sha }} \
+            ubuntu:20.04 \
+            /bin/bash /workspace/scripts/ci-build-docker.sh ${{ matrix.arch }}
 
       - name: Upload Binaries
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
-          name: Moonlight-LinuxAppImage-${{ env.CI_VERSION }}-${{ matrix.arch }}
-          path: build/installer-release/Moonlight-${{ env.CI_VERSION }}-${{ matrix.arch }}.AppImage
+          name: Moonlight-LinuxAppImage-${{ inputs.ci_version || github.sha }}-${{ matrix.arch }}
+          path: build/installer-release/*.AppImage
           compression-level: 0
           if-no-files-found: error
