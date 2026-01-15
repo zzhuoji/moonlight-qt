@@ -112,6 +112,10 @@ if [ ! -f "$QT_INSTALL_DIR/bin/qmake6" ] && [ -f "$QT_INSTALL_DIR/bin/qmake" ]; 
     ln -s $QT_INSTALL_DIR/bin/qmake $QT_INSTALL_DIR/bin/qmake6
 fi
 
+# Remove problematic SQL drivers that cause linuxdeployqt to fail due to missing dependencies
+rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlmimer.so
+rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlodbc.so
+
 # Build Dependencies
 mkdir -p deps
 
