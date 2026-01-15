@@ -22,7 +22,7 @@ dpkg-reconfigure --frontend noninteractive tzdata
 apt-get install -y git python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
     libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
     libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-    wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config meson ninja-build curl xz-utils
+    wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config ninja-build curl xz-utils
 
 # Install Vulkan SDK
 echo "Installing Vulkan SDK..."
@@ -63,19 +63,26 @@ export PATH=$PWD/dep_root/bin:$PATH
 
 # Install Qt6
 echo "Installing Qt6..."
-QT_VERSION=6.5.3
+QT_VERSION=6.7.2
 QT_DIR=/opt/qt
 mkdir -p $QT_DIR
 
 if [ "$ARCH" = "x86_64" ]; then
+    QT_HOST="linux"
     QT_ARCH="gcc_64"
 else
+    # For ARM64, use linux_arm64 host (supported in Qt 6.7+)
+    QT_HOST="linux_arm64"
     QT_ARCH="gcc_arm64"
 fi
 
-echo "Installing Qt $QT_VERSION for $QT_ARCH"
-python3 -m aqt install-qt -O $QT_DIR linux desktop $QT_VERSION $QT_ARCH || \
-(echo "Retry without modules..." && python3 -m aqt install-qt -O $QT_DIR linux desktop $QT_VERSION $QT_ARCH --archives qtbase qtsvg qtdeclarative)
+echo "Installing Qt $QT_VERSION for $QT_HOST / $QT_ARCH"
+# List modules for debug
+echo "Available architectures (debug):"
+python3 -m aqt list-qt $QT_HOST desktop --arch $QT_VERSION || echo "Failed to list architectures"
+
+python3 -m aqt install-qt -O $QT_DIR $QT_HOST desktop $QT_VERSION $QT_ARCH --archives qtbase qtsvg qtdeclarative || \
+(echo "Retry with basic install..." && python3 -m aqt install-qt -O $QT_DIR $QT_HOST desktop $QT_VERSION $QT_ARCH)
 
 # Find Qt install dir
 QT_INSTALL_DIR=$(find $QT_DIR/$QT_VERSION -name "qmake" -type f | head -1 | xargs dirname | xargs dirname)
