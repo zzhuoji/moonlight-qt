@@ -39,6 +39,7 @@ if [ "$ARCH" = "x86_64" ]; then
         export VULKAN_SDK=$VULKAN_SDK_DIR
         export PATH=$VULKAN_SDK/bin:$PATH
         export LD_LIBRARY_PATH=$VULKAN_SDK/lib:${LD_LIBRARY_PATH:-}
+        export PKG_CONFIG_PATH=$VULKAN_SDK/lib/pkgconfig:${PKG_CONFIG_PATH:-}
         echo "Vulkan SDK installed at $VULKAN_SDK_DIR"
     else
         echo "Failed to download Vulkan SDK, falling back to system packages"
