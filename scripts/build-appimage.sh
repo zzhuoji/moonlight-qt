@@ -66,7 +66,9 @@ popd
 
 echo Creating AppImage
 pushd $INSTALLER_FOLDER
-VERSION=$VERSION linuxdeployqt $DEPLOY_FOLDER/usr/share/applications/com.moonlight_stream.Moonlight.desktop -qmake=qmake6 -qmldir=$SOURCE_ROOT/app/gui -appimage -extra-plugins=tls || fail "linuxdeployqt failed!"
+echo Creating AppImage
+pushd $INSTALLER_FOLDER
+VERSION=$VERSION linuxdeployqt $DEPLOY_FOLDER/usr/share/applications/com.moonlight_stream.Moonlight.desktop -qmake=qmake6 -qmldir=$SOURCE_ROOT/app/gui -appimage -extra-plugins=tls -exclude-libs=libqsqlmimer.so,libqsqlodbc.so || fail "linuxdeployqt failed!"
 
 # Detect architecture and rename AppImage to include architecture
 ARCH=$(uname -m)
