@@ -22,7 +22,7 @@ dpkg-reconfigure --frontend noninteractive tzdata
 apt-get install -y git python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
     libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
     libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-    wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config ninja-build curl xz-utils
+    wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config ninja-build curl xz-utils libssl-dev
 
 # Install Vulkan SDK
 echo "Installing Vulkan SDK..."
