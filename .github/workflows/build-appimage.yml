@@ -74,14 +74,42 @@ jobs:
             libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
             libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
             wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config meson ninja-build curl
-          # Add LunarG Vulkan repository (only for x86_64)
+          # Install Vulkan SDK using tarball (LunarG APT repository is deprecated)
+          # For x86_64, try to install Vulkan SDK from tarball, fallback to system packages
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            mkdir -p /etc/apt/keyrings
-            wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | tee /etc/apt/keyrings/lunarg.asc > /dev/null
-            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/lunarg.asc] https://packages.lunarg.com/vulkan/1.4.313 focal main" | tee /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-focal.list > /dev/null
-            apt-get update
-            apt-get install -y vulkan-sdk || (echo "Warning: vulkan-sdk not available, trying libvulkan-dev" && apt-get install -y libvulkan-dev vulkan-tools)
+            echo "Installing Vulkan SDK for x86_64..."
+            VULKAN_SDK_VERSION=1.4.313.0
+            VULKAN_SDK_DIR=/opt/vulkan-sdk
+            mkdir -p $VULKAN_SDK_DIR
+            # Try to download and install Vulkan SDK from tarball
+            if wget -q --spider https://sdk.lunarg.com/sdk/download/${VULKAN_SDK_VERSION}/linux/vulkan-sdk-${VULKAN_SDK_VERSION}-linux-x86_64.tar.gz 2>/dev/null; then
+              echo "Downloading Vulkan SDK tarball..."
+              wget -q https://sdk.lunarg.com/sdk/download/${VULKAN_SDK_VERSION}/linux/vulkan-sdk-${VULKAN_SDK_VERSION}-linux-x86_64.tar.gz -O /tmp/vulkan-sdk.tar.gz
+              if [ -f /tmp/vulkan-sdk.tar.gz ]; then
+                tar -xzf /tmp/vulkan-sdk.tar.gz -C $VULKAN_SDK_DIR --strip-components=1
+                export VULKAN_SDK=$VULKAN_SDK_DIR
+                export PATH=$VULKAN_SDK/bin:$PATH
+                export LD_LIBRARY_PATH=$VULKAN_SDK/lib:${LD_LIBRARY_PATH:-}
+                echo "VULKAN_SDK=$VULKAN_SDK_DIR" >> "${GITHUB_ENV}"
+                echo "$VULKAN_SDK_DIR/bin" >> "${GITHUB_PATH}"
+                # Set LD_LIBRARY_PATH for subsequent steps
+                if [ -n "${LD_LIBRARY_PATH}" ]; then
+                  echo "LD_LIBRARY_PATH=$VULKAN_SDK_DIR/lib:${LD_LIBRARY_PATH}" >> "${GITHUB_ENV}"
+                else
+                  echo "LD_LIBRARY_PATH=$VULKAN_SDK_DIR/lib" >> "${GITHUB_ENV}"
+                fi
+                echo "Vulkan SDK installed from tarball at $VULKAN_SDK_DIR"
+              else
+                echo "Warning: Failed to download Vulkan SDK tarball, falling back to system packages"
+                apt-get install -y libvulkan-dev vulkan-tools || echo "Warning: Failed to install Vulkan packages"
+              fi
+            else
+              echo "Warning: Vulkan SDK tarball not available, falling back to system packages"
+              apt-get install -y libvulkan-dev vulkan-tools || echo "Warning: Failed to install Vulkan packages"
+            fi
           else
+            # For arm64, use system packages (Vulkan SDK tarball may not be available for arm64)
+            echo "Installing Vulkan packages for arm64 from system repositories..."
             apt-get install -y libvulkan-dev vulkan-tools vulkan-loader-dev || apt-get install -y libvulkan-dev
             apt-get install -y vulkan-validationlayers-dev 2>/dev/null || echo "Note: vulkan-validationlayers-dev not available, skipping"
           fi
