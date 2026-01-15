@@ -162,7 +162,7 @@ pushd deps/libplacebo
 if ls ../../app/deploy/linux/appimage/*.patch 1> /dev/null 2>&1; then
     git apply ../../app/deploy/linux/appimage/*.patch || true
 fi
-meson setup build -Dvulkan=enabled -Dopengl=disabled -Ddemos=false --prefix=$DEP_ROOT
+meson setup build -Dvulkan=enabled -Dopengl=disabled -Ddemos=false --prefix=$DEP_ROOT --libdir=lib
 ninja -C build
 ninja install -C build
 popd
@@ -174,7 +174,7 @@ if [ ! -d "deps/dav1d" ]; then
     git clone --branch $DAV1D_VER --depth 1 https://code.videolan.org/videolan/dav1d.git deps/dav1d
 fi
 pushd deps/dav1d
-meson setup build -Ddefault_library=static -Dbuildtype=release -Denable_tools=false -Denable_tests=false --prefix=$DEP_ROOT
+meson setup build -Ddefault_library=static -Dbuildtype=release -Denable_tools=false -Denable_tests=false --prefix=$DEP_ROOT --libdir=lib
 ninja -C build
 ninja install -C build
 popd
@@ -188,7 +188,7 @@ if [ ! -d "deps/FFmpeg" ]; then
     cd ../..
 fi
 pushd deps/FFmpeg
-export PKG_CONFIG_PATH=$DEP_ROOT/lib/pkgconfig:$PKG_CONFIG_PATH
+export PKG_CONFIG_PATH=$DEP_ROOT/lib/pkgconfig:$DEP_ROOT/lib64/pkgconfig:$PKG_CONFIG_PATH
 
 FFMPEG_CONF="--prefix=$DEP_ROOT --enable-pic --disable-static --enable-shared --disable-all --disable-autodetect --enable-avcodec --enable-avformat --enable-swscale \
     --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=av1 \
