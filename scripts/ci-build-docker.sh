@@ -54,7 +54,9 @@ fi
 apt-get install -y libpipewire-0.3-dev 2>/dev/null || echo "libpipewire-0.3-dev not available, skipping"
 
 # Install meson/aqtinstall
-pip3 install meson aqtinstall
+# Upgrade pip first to ensure we get new packages
+python3 -m pip install --upgrade pip
+pip3 install -U meson aqtinstall
 
 # Setup dep_root
 mkdir -p dep_root/{bin,include,lib}
@@ -69,11 +71,11 @@ mkdir -p $QT_DIR
 
 if [ "$ARCH" = "x86_64" ]; then
     QT_HOST="linux"
-    QT_ARCH="gcc_64"
+    QT_ARCH="linux_gcc_64"
 else
     # For ARM64, use linux_arm64 host (supported in Qt 6.7+)
     QT_HOST="linux_arm64"
-    QT_ARCH="gcc_arm64"
+    QT_ARCH="linux_gcc_arm64"
 fi
 
 echo "Installing Qt $QT_VERSION for $QT_HOST / $QT_ARCH"
