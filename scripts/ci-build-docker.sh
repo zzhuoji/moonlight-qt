@@ -89,8 +89,9 @@ echo "Installing Qt $QT_VERSION for $QT_HOST / $QT_ARCH"
 echo "Available architectures (debug):"
 python3 -m aqt list-qt $QT_HOST desktop --arch $QT_VERSION || echo "Failed to list architectures"
 
-python3 -m aqt install-qt -O $QT_DIR $QT_HOST desktop $QT_VERSION $QT_ARCH --archives qtbase qtsvg qtdeclarative || \
-(echo "Retry with basic install..." && python3 -m aqt install-qt -O $QT_DIR $QT_HOST desktop $QT_VERSION $QT_ARCH)
+# Perform standard install (installing specific archives caused missing dependencies like libicu)
+python3 -m aqt install-qt -O $QT_DIR $QT_HOST desktop $QT_VERSION $QT_ARCH --archives qtbase qtsvg qtdeclarative icu || \
+(echo "Retry with full install..." && python3 -m aqt install-qt -O $QT_DIR $QT_HOST desktop $QT_VERSION $QT_ARCH)
 
 # Find Qt install dir
 QT_INSTALL_DIR=$(find $QT_DIR/$QT_VERSION -name "qmake" -type f | head -1 | xargs dirname | xargs dirname)
