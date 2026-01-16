@@ -121,6 +121,21 @@ rm -f $QT_INSTALL_DIR/plugins/sqldrivers/libqsqlpsql.so
 # Build Dependencies
 mkdir -p deps
 
+# Install OpenSSL 3 (Required by Qt 6.7+, Ubuntu 20.04 only has 1.1)
+echo "Building OpenSSL 3..."
+OPENSSL_VER=3.0.13
+if [ ! -d "deps/openssl" ]; then
+    wget -q https://www.openssl.org/source/openssl-$OPENSSL_VER.tar.gz
+    tar -xzf openssl-$OPENSSL_VER.tar.gz
+    mv openssl-$OPENSSL_VER deps/openssl
+    rm openssl-$OPENSSL_VER.tar.gz
+fi
+pushd deps/openssl
+./config --prefix=$DEP_ROOT --openssldir=$DEP_ROOT/ssl shared zlib
+make -j$(nproc)
+make install_sw
+popd
+
 # SDL
 echo "Building SDL..."
 if [ ! -d "deps/SDL" ]; then

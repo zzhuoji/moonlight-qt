@@ -64,6 +64,15 @@ pushd $BUILD_FOLDER
 make install || fail "Make install failed!"
 popd
 
+# Manually bundle OpenSSL 3 libraries (since host is Ubuntu 20.04/OpenSSL 1.1)
+# Qt 6.7 requires OpenSSL 3.x
+if [ -d "$DEP_ROOT/lib" ]; then
+    echo "Bundling OpenSSL 3 libraries..."
+    mkdir -p $DEPLOY_FOLDER/usr/lib
+    cp -a $DEP_ROOT/lib/libssl.so* $DEPLOY_FOLDER/usr/lib/
+    cp -a $DEP_ROOT/lib/libcrypto.so* $DEPLOY_FOLDER/usr/lib/
+fi
+
 echo Creating AppImage
 pushd $INSTALLER_FOLDER
 echo Creating AppImage
