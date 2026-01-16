@@ -24,7 +24,7 @@ dpkg-reconfigure --frontend noninteractive tzdata
 apt-get install -y git python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \
     libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libglu1-mesa-dev libibus-1.0-dev libpulse-dev libudev-dev libx11-dev libxcursor-dev \
     libxext-dev libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev libxt-dev libxv-dev libxxf86vm-dev libxcb-dri3-dev libx11-xcb-dev \
-    wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config ninja-build curl xz-utils libssl-dev libfontconfig1-dev libxkbcommon-x11-dev file libxcb-cursor-dev fuse p7zip-full \
+    wayland-protocols libopus-dev libvdpau-dev libgl-dev wget build-essential autoconf automake libtool pkg-config ninja-build curl xz-utils libssl-dev libfontconfig1-dev libxkbcommon-x11-dev file libxcb-cursor-dev fuse squashfs-tools \
     libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-shape0-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-xkb-dev libxcb-util-dev
 
 # Install Vulkan SDK
@@ -253,18 +253,32 @@ fi
 wget -O dep_root/bin/linuxdeployqt-appimage "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-$LD_ARCH.AppImage"
 chmod a+x dep_root/bin/linuxdeployqt-appimage
 
-# Extract AppImage manually using 7z to avoid FUSE/execution issues in Docker/QEMU
+# Extract AppImage manually to avoid FUSE/execution issues in Docker/QEMU
 pushd dep_root/bin
-echo "Extracting AppImage with 7z..."
-7z x linuxdeployqt-appimage -olinuxdeployqt-root
-if [ -d "linuxdeployqt-root" ]; then
+echo "Extracting AppImage (scanning for offsets)..."
+# Find ALL offsets of the squashfs filesystem (Magic signature 'hsqs'), not just the first one
+OFFSETS=$(grep -a -b -o 'hsqs' linuxdeployqt-appimage | cut -f 1 -d :)
+EXTRACTED=0
+for OFFSET in $OFFSETS; do
+    echo "Trying extraction at offset: $OFFSET"
+    # Try to extract
+    if dd if=linuxdeployqt-appimage of=try.squashfs skip="$OFFSET" iflag=skip_bytes status=none && \
+       unsquashfs -n -d linuxdeployqt-root try.squashfs >/dev/null 2>&1; then
+        echo "Success at offset $OFFSET"
+        EXTRACTED=1
+        rm -f try.squashfs
+        break
+    fi
+    rm -f try.squashfs
+done
+
+if [ "$EXTRACTED" -eq 1 ]; then
     # Link the entry point
     ln -s linuxdeployqt-root/AppRun linuxdeployqt
-    chmod +x linuxdeployqt-root/AppRun
-    # Cleanup intermediate file but KEEP the root directory
+    chmod +x linuxdeployqt
     rm -f linuxdeployqt-appimage
 else
-    echo "Error: Failed to extract AppImage"
+    echo "Error: Failed to find valid squashfs in AppImage"
     exit 1
 fi
 popd
