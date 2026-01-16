@@ -71,7 +71,7 @@ pip3 install -U meson aqtinstall
 mkdir -p dep_root/{bin,include,lib}
 export DEP_ROOT=$PWD/dep_root
 export PATH=$PWD/dep_root/bin:$PATH
-export LD_LIBRARY_PATH=$PWD/dep_root/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$PWD/dep_root/lib:$PWD/dep_root/lib64:$LD_LIBRARY_PATH
 
 # Install Qt6
 echo "Installing Qt6..."
