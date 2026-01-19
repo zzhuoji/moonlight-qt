@@ -6,3 +6,8 @@
 build/
 config.tests/*/.qmake.stash
 config.tests/*/Makefile
+
+# AppImage
+build
+dep*
+*.log
